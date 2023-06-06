@@ -1,6 +1,6 @@
 # BotDetector Bukkit Plugin
 
-BotDetector is a Bukkit plugin designed to help server owners and administrators detect and handle players who use mining bots to gain unfair advantages in survival gameplay. The plugin uses multiple detection methods, including the Turing test for players who mine continuously, and the detection of non-human head-turning actions unique to the Baritone cheat client (with high accuracy).
+BotDetector is a Bukkit plugin designed to help server owners and administrators detect and handle players who use mining bots to gain unfair advantages in survival gameplay. The plugin uses multiple detection methods, including the Turing test for players who mine continuously, and the detection of non-human rotation actions unique to the Baritone cheat client (with high accuracy, but can be bypassed by serveral forks of Baritone/other cheating client).
 
 The installation of this plugin is very simple - just drag and drop it into the plugins folder. The plugin provides two configuration options: the duration of continuous mining required to trigger the plugin's restrictions, and the length of time a player is banned for.
 
@@ -12,7 +12,7 @@ The installation of this plugin is very simple - just drag and drop it into the 
 
 ## Installation
 
-1. Download the plugin from the releases page on GitHub or build manually.
+1. Download the plugin from the releases page, or build manually.
 2. Drag and drop the jar file into the `plugins/` folder of your Bukkit server.
 3. Restart the server.
 
@@ -20,13 +20,13 @@ The installation of this plugin is very simple - just drag and drop it into the 
 
 The plugin provides two configuration options:
 
-### `mining-time`
+### `constantly-mining-threshold`
 
 The duration of continuous mining required to trigger the plugin's restrictions.
 
 **default:** `15` (minutes)
 
-### `ban-time`
+### `ban-period`
 
 The length of time a player is banned for if the plugin detected inhuman rotations.
 
