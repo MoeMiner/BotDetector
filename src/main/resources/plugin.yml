@@ -1,0 +1,6 @@
+name: BotDetector
+version: '${version}'
+main: com.aqmoe.botdetector.BotDetector
+api-version: 1.13
+authors: [ MatchaDevil ]
+description: A detector for mining dummies.
