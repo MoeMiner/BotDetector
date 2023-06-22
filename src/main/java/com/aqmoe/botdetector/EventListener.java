@@ -27,10 +27,10 @@ public class EventListener implements Listener {
 
 
     public EventListener() {
-        MINING_TIME_LIMIT = (long) BotDetector.getInstance().getConfig().getInt("constantly-mining-threshold") * 60 * 1000;
         new BukkitRunnable() {
             @Override
             public void run() {
+                MINING_TIME_LIMIT = (long) BotDetector.getInstance().getConfig().getInt("constantly-mining-threshold") * 60 * 1000;
                 // 每一分钟执行对每个玩家的基本检查
                 for(Player player : Bukkit.getOnlinePlayers()) {
                     UUID playerUUID = player.getUniqueId();
