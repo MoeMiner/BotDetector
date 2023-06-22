@@ -3,4 +3,14 @@ version: '${version}'
 main: com.aqmoe.botdetector.BotDetector
 api-version: 1.13
 authors: [ MatchaDevil ]
-description: A detector for mining dummies.
+description: A detector for mining bots like baritone.
+
+permissions:
+  botdetector.bypass:
+    default: op
+  botdetector.reload:
+    default: op
+
+commands:
+  botdetector:
+    description: "BotDetector command"

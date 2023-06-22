@@ -5,10 +5,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
-import org.bukkit.event.player.PlayerInteractEntityEvent;
-import org.bukkit.event.player.PlayerItemConsumeEvent;
-import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.*;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.HashMap;
@@ -23,7 +20,7 @@ public class EventListener implements Listener {
     private HashMap<UUID, Integer> violation = new HashMap<>();
     private final HashMap<UUID, Long> lastMiningReset = new HashMap<>();
     private final int requiredBlocksPerMinute = 30;
-    private final int minBanViolenceLimit = 20;
+    private final int minBanViolenceLimit = 10;
     private final int maxKickViolation = 25;
 
     private final HashMap<UUID, Integer> noConfidencePlayers = new HashMap<>();
@@ -37,6 +34,9 @@ public class EventListener implements Listener {
                 // 每一分钟执行对每个玩家的基本检查
                 for(Player player : Bukkit.getOnlinePlayers()) {
                     UUID playerUUID = player.getUniqueId();
+                    // 如果玩家已经不被信任，则暂时停止做其他事情
+                    if(noConfidencePlayers.containsKey(playerUUID)) continue;
+
                     if(miningStartTimes.containsKey(playerUUID)) {
                         long miningDuration = System.currentTimeMillis() - miningStartTimes.get(playerUUID);
                         if (miningDuration > MINING_TIME_LIMIT) {
@@ -76,37 +76,48 @@ public class EventListener implements Listener {
 
         if(noConfidencePlayers.containsKey(playerUUID)) {
             event.setCancelled(true);
-            BotDetector.message(player, noConfidencePlayers.get(playerUUID), maxKickViolation);
-            if(noConfidencePlayers.get(playerUUID) > maxKickViolation) {
+            int player_vl = noConfidencePlayers.get(playerUUID);
+            // debug
+            BotDetector.debug(player, "Blocked (violation=" + player_vl + ")");
+
+            BotDetector.message(player, player_vl, maxKickViolation);
+            if (player_vl >= maxKickViolation) {
                 BotDetector.kick(player);
             }
 
             noConfidencePlayers.put(playerUUID, noConfidencePlayers.get(playerUUID) + 1);
+            return;
         }
 
         if (OreBlocksFilter.isOreBlock(event.getBlock())) {
             UUID playerId = player.getUniqueId();
             miningCount.put(playerId, miningCount.getOrDefault(playerId, 0) + 1);
-            lastMiningReset.putIfAbsent(playerId, System.currentTimeMillis());
 
             if (!miningStartTimes.containsKey(player.getUniqueId())) {
                 miningStartTimes.put(player.getUniqueId(), System.currentTimeMillis());
             }
+
         }
 
         UUID playerId = player.getUniqueId();
         long currentTime = System.currentTimeMillis();
         // 处理 “玩家持续挖矿” 的判断
         // 玩家每分钟挖矿的方块数量必须超过 requiredBlocksPerMinute 否则持续挖矿状态中断
-        if (lastMiningReset.containsKey(playerId) && (currentTime - lastMiningReset.get(playerId)) / 60000 >= 1) {
-            if (miningCount.getOrDefault(playerId, 0) >= requiredBlocksPerMinute) {
+        if (lastMiningReset.containsKey(playerId)) {
+            if((currentTime - lastMiningReset.get(playerId)) / 60000 >= 1) {
+                if (miningCount.getOrDefault(playerId, 0) >= requiredBlocksPerMinute) {
+                    lastMiningReset.put(playerId, currentTime);
+                    // debug
+                    BotDetector.debug(player, "You are mining last minute (miningCount=" + miningCount.getOrDefault(playerId, 0) + ")");
+                } else {
+                    lastMiningReset.remove(playerId);
+                    miningStartTimes.remove(playerId);
+                }
+                // 在了解上一分钟的情况后，无论如何都要重置计数器
                 miningCount.put(playerId, 0);
-                lastMiningReset.put(playerId, currentTime);
-            } else {
-                miningCount.remove(playerId);
-                lastMiningReset.remove(playerId);
-                miningStartTimes.remove(playerId);
             }
+        } else {
+            lastMiningReset.put(playerId, currentTime);
         }
     }
 
@@ -120,6 +131,16 @@ public class EventListener implements Listener {
         miningStartTimes.remove(event.getPlayer().getUniqueId());
     }
 
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        UUID playerId = event.getPlayer().getUniqueId();
+
+        // 清理一些可以被清理的检测数值
+        noConfidencePlayers.remove(event.getPlayer().getUniqueId());
+        miningCount.remove(playerId);
+        lastMiningReset.remove(playerId);
+        miningStartTimes.remove(playerId);
+    }
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
@@ -127,6 +148,7 @@ public class EventListener implements Listener {
 
         // Bypass players with permission
         if(player.hasPermission("botdetector.bypass")) return;
+        if(BotDetector.getInstance().getConfig().getBoolean("disable-move-check", false)) return;
 
         // 检查玩家是否旋转了头部
         if(event.getTo() == null) return;
@@ -136,10 +158,12 @@ public class EventListener implements Listener {
 
             // 如果旋转角度大于90度，则认为玩家作弊
             if (rotationDifference > 90) {
-                event.setCancelled(true);
                 violation.put(player.getUniqueId(), violation.getOrDefault(player.getUniqueId(), 0) + 1);
+                // debug
+                BotDetector.debug(player, "Possible mining bot (vl=" + violation.getOrDefault(player.getUniqueId(), 0) + ", max=" + minBanViolenceLimit + ")");
                 if(violation.get(player.getUniqueId()) > minBanViolenceLimit) {
                     // violation 代表玩家非法转头积累的 VL，到达限制后立即 ban
+                    violation.remove(player.getUniqueId());
                     BotDetector.kick(player);
                     BotDetector.ban(player);
                 }
